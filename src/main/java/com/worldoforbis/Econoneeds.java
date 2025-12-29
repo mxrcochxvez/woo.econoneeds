@@ -2,6 +2,7 @@ package com.worldoforbis;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import com.worldoforbis.economy.EconomyManager;
+import com.worldoforbis.economy.ItemPriceManager;
 import com.worldoforbis.commands.EcoCommand;
 import com.worldoforbis.commands.TestCommand;
 import com.worldoforbis.listeners.PlayerListener;
@@ -12,6 +13,7 @@ public class Econoneeds extends JavaPlugin {
     public void onEnable() {
         // Initialize economy system
         EconomyManager.initialize(this);
+        ItemPriceManager.initialize(this);
 
         // Register commands
         EcoCommand ecoCommand = new EcoCommand();

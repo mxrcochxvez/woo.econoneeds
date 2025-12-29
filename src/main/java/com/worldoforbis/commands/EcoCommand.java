@@ -1,13 +1,16 @@
 package com.worldoforbis.commands;
 
 import com.worldoforbis.economy.EconomyManager;
+import com.worldoforbis.economy.ItemPriceManager;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,6 +32,7 @@ import java.util.stream.Collectors;
  * /eco take <player> <amount> - Take money from a player
  * /eco set <player> <amount> - Set a player's balance
  * /eco check <player> - Check a player's balance
+ * /eco sell <amount> - Sell item in hand
  */
 public class EcoCommand implements CommandExecutor, TabCompleter {
 
@@ -63,6 +67,8 @@ public class EcoCommand implements CommandExecutor, TabCompleter {
                 return handleSet(sender, args);
             case "check":
                 return handleCheck(sender, args);
+            case "sell":
+                return handleSell(sender, args);
 
             default:
                 sendUsage(sender);
@@ -308,6 +314,73 @@ public class EcoCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean handleSell(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("§cThis command can only be used by players.");
+            return true;
+        }
+
+        Player player = (Player) sender;
+        ItemStack item = player.getInventory().getItemInMainHand();
+
+        if (item == null || item.getType() == Material.AIR) {
+            player.sendMessage("§cYou must be holding an item to sell.");
+            return true;
+        }
+
+        // Check if item is sellable
+        ItemPriceManager priceManager = ItemPriceManager.getInstance();
+        if (!priceManager.isSellable(item.getType())) {
+            player.sendMessage("§cThis item cannot be sold: §f" + item.getType().name());
+            return true;
+        }
+
+        // Parse amount (default to 1 if not specified)
+        int amount = 1;
+        if (args.length >= 2) {
+            try {
+                amount = Integer.parseInt(args[1]);
+                if (amount <= 0) {
+                    player.sendMessage("§cAmount must be greater than zero.");
+                    return true;
+                }
+            } catch (NumberFormatException e) {
+                player.sendMessage("§cInvalid amount: " + args[1]);
+                return true;
+            }
+        }
+
+        if (item.getAmount() < amount) {
+            player.sendMessage(
+                    "§cYou don't have enough! You have §f" + item.getAmount() + "§c, tried to sell §f" + amount);
+            return true;
+        }
+
+        // Calculate earnings
+        double pricePerItem = priceManager.getPrice(item.getType());
+        double totalEarnings = pricePerItem * amount;
+
+        // Remove items from inventory
+        int newAmount = item.getAmount() - amount;
+        if (newAmount <= 0) {
+            player.getInventory().setItemInMainHand(null);
+        } else {
+            item.setAmount(newAmount);
+        }
+
+        // Add money to player's balance
+        EconomyManager economy = EconomyManager.getInstance();
+        economy.addBalance(player.getUniqueId(), totalEarnings);
+
+        // Send success message
+        String itemName = item.getType().name().replace("_", " ").toLowerCase();
+        player.sendMessage(
+                "§aSold §f" + amount + "x " + itemName + "§a for " + EconomyManager.formatCurrency(totalEarnings));
+        player.sendMessage("§7New balance: " + EconomyManager.formatCurrency(economy.getBalance(player.getUniqueId())));
+
+        return true;
+    }
+
     // ==================== UTILITY METHODS ====================
 
     private void sendUsage(CommandSender sender) {
@@ -315,6 +388,7 @@ public class EcoCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/eco bal §7- Check your balance");
         sender.sendMessage("§e/eco pay <player> <amount> §7- Send money");
         sender.sendMessage("§e/eco top §7- View richest players");
+        sender.sendMessage("§e/eco sell [amount] §7- Sell item in hand");
 
         if (sender.hasPermission("econoneeds.admin")) {
             sender.sendMessage("§6--- Admin Commands ---");
@@ -357,9 +431,9 @@ public class EcoCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 1) {
-            List<String> subCommands = Arrays.asList("bal", "pay", "top");
+            List<String> subCommands = Arrays.asList("bal", "pay", "top", "sell");
             if (sender.hasPermission("econoneeds.admin")) {
-                subCommands = Arrays.asList("bal", "pay", "top", "give", "take", "set", "check");
+                subCommands = Arrays.asList("bal", "pay", "top", "sell", "give", "take", "set", "check");
             }
             return subCommands.stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
