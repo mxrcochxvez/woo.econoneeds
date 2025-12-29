@@ -1,0 +1,19 @@
+main: com.worldoforbis.Econoneeds
+version: 1.0.0-SNAPSHOT
+name: Econoneeds
+author: World of Orbis
+api-version: 1.13
+
+permissions:
+  econoneeds.admin:
+    description: Allows access to admin economy commands
+    default: op
+
+commands:
+  eco:
+    description: Economy commands
+    usage: /<command> <bal|pay|top|give|take|set|check>
+    aliases: [economy, money]
+  test:
+    description: Test command
+    usage: /<command>
