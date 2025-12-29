@@ -34,5 +34,5 @@ tasks.withType(JavaCompile).configureEach {
 tasks.register('deploy', Copy) {
     dependsOn jar
     from(jar.archiveFile)
-    into('C:\\Users\\admin\\Desktop\\dev\\plugins')
+    into(pluginsDir)
 }
